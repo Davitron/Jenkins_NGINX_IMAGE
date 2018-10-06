@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+  become: true
+  vars:
+    domain: "localhost"
+
+  tasks:
+  - name: Add jenkins repo key to system
+    apt_key:
+      url:  "https://pkg.jenkins.io/debian/jenkins-ci.org.key"
+      state: present
+  - name: Add jenkins to repository
+    apt_repository:
+      repo: "deb http://pkg.jenkins.io/debian-stable binary/"
+      state: present
+      update_cache: yes
+  - name: Install java
+    apt:
+      name: openjdk-8-jdk
+      state:  latest
+      install_recommends: no
+  - name: Install jenkins
+    apt:
+      name: jenkins
+      state: present
+  - name: start jenkins service
+    service:
+      name: jenkins
+      state: started
+  - name: Install nginx
+    apt:
+      name: nginx
+      state:  present
+  - name: Remove nginx default configuration
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+  - name: enable reverse proxy
+    shell:
+      cmd: |
+        cat > /etc/nginx/sites-available/jenkins <<EOF
+        server {
+          listen 80;
+          server_name {{ domain }};
+          location / {
+            proxy_pass 'http://127.0.0.1:8080';
+          }
+        }
+        EOF
+  - name: create symlinks for nginx configuration
+    file:
+      src:  /etc/nginx/sites-available/jenkins
+      dest: /etc/nginx/sites-enabled/jenkins
+      state: link
+    notify:
+    - restart nginx
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
