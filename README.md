@@ -1,0 +1,1 @@
+# Jenkins_NGINX_IMAGE
